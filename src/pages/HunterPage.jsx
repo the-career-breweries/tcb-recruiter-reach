@@ -537,7 +537,7 @@ export default function HunterPage() {
               Recruiter Reach is an executive-grade job acquisition engine reserved for verified candidates. Unlock your <b>7-Day Access Pass for ₹999</b> (locked to 2 devices) to scout hiring managers, resolve work emails, and generate tailored outreach scripts.
             </p>
             <a
-              href="https://wa.me/919743711584?text=Hi%20Coach%20Sandarsh!%20👋%20I%20would%20like%20to%20get%20a%207-Day%20Access%20Pass%20for%20Recruiter%20Reach%20(₹999)."
+              href="https://wa.me/919482055920?text=Hi%20Coach%20Sandarsh!%20👋%20I%20would%20like%20to%20get%20a%207-Day%20Access%20Pass%20for%20Recruiter%20Reach%20(₹999)."
               target="_blank"
               rel="noreferrer"
               style={{ display: 'block', width: '100%', background: C.amber, color: '#1C1410', textDecoration: 'none', borderRadius: '12px', padding: '14px', fontSize: '15px', fontWeight: 800, marginBottom: '16px', boxShadow: '0 4px 16px rgba(201,123,42,0.3)', boxSizing: 'border-box' }}
@@ -596,7 +596,7 @@ export default function HunterPage() {
               ⚡ Switch Session to This Device
             </button>
             <a
-              href="https://wa.me/919743711584?text=Hi%20Coach%20Sandarsh!%20👋%20I%20have%20a%20question%20about%20my%20Recruiter%20Reach%20device%20session."
+              href="https://wa.me/919482055920?text=Hi%20Coach%20Sandarsh!%20👋%20I%20have%20a%20question%20about%20my%20Recruiter%20Reach%20device%20session."
               target="_blank"
               rel="noreferrer"
               style={{ fontSize: '12px', color: C.soft, textDecoration: 'none' }}
@@ -625,7 +625,7 @@ export default function HunterPage() {
               Your 7-day recruiter reconnaissance window has ended. Top up for <b>+3 days (72 hours) for ₹299</b> to continue scouting hiring managers, resolving work emails, and generating tailored outbound scripts.
             </p>
             <a
-              href={`https://wa.me/919743711584?text=Hi%20Coach%20Sandarsh!%20👋%20My%207-day%20Recruiter%20Reach%20pass%20has%20expired%20(Code%20%23${_mindlerCode}).%20I%20would%20like%20to%20top%20up%20for%20%2B3%20days%20(₹299).`}
+              href={`https://wa.me/919482055920?text=Hi%20Coach%20Sandarsh!%20👋%20My%207-day%20Recruiter%20Reach%20pass%20has%20expired%20(Code%20%23${_mindlerCode}).%20I%20would%20like%20to%20top%20up%20for%20%2B3%20days%20(₹299).`}
               target="_blank"
               rel="noreferrer"
               style={{ display: 'block', width: '100%', background: '#16A34A', color: 'white', textDecoration: 'none', borderRadius: '12px', padding: '14px', fontSize: '15px', fontWeight: 800, marginBottom: '16px', boxShadow: '0 4px 16px rgba(22,163,74,0.3)', boxSizing: 'border-box' }}
@@ -691,7 +691,7 @@ export default function HunterPage() {
             </div>
             {otpError && <div style={{ color: '#EF4444', fontSize: '12px', fontWeight: 600, marginBottom: '14px' }}>{otpError}</div>}
             <a
-              href={`https://wa.me/919743711584?text=Hi%20Coach%20Sandarsh!%20👋%20I'm%20setting%20up%20my%20secondary%20device%20for%20Recruiter%20Reach%20(Code%20%23${_mindlerCode}).%20Please%20share%20the%204-digit%20authorization%20code.`}
+              href={`https://wa.me/919482055920?text=Hi%20Coach%20Sandarsh!%20👋%20I'm%20setting%20up%20my%20secondary%20device%20for%20Recruiter%20Reach%20(Code%20%23${_mindlerCode}).%20Please%20share%20the%204-digit%20authorization%20code.`}
               target="_blank"
               rel="noreferrer"
               style={{ display: 'inline-block', fontSize: '12px', color: C.soft, textDecoration: 'none' }}
@@ -717,7 +717,7 @@ export default function HunterPage() {
             Access Blocked: Maximum 2 devices (1 Primary + 1 Secondary) are already bound to this pass. Multi-device link sharing is locked.
           </p>
           <a
-            href={`https://wa.me/919743711584?text=Hi%20Coach%20Sandarsh!%20👋%20My%20Recruiter%20Reach%20pass%20(Code%20%23${_mindlerCode})%20is%20showing%20device%20limit%20exceeded.%20I%20need%20to%20reset%20my%20registered%20devices.`}
+            href={`https://wa.me/919482055920?text=Hi%20Coach%20Sandarsh!%20👋%20My%20Recruiter%20Reach%20pass%20(Code%20%23${_mindlerCode})%20is%20showing%20device%20limit%20exceeded.%20I%20need%20to%20reset%20my%20registered%20devices.`}
             target="_blank"
             rel="noreferrer"
             style={{ display: 'inline-block', background: '#EF4444', color: 'white', textDecoration: 'none', borderRadius: '12px', padding: '14px 24px', fontWeight: 800, fontSize: '14px' }}
@@ -814,7 +814,7 @@ export default function HunterPage() {
               You have completed all 3 of your licensed recruiter reconnaissance drills. Request a strategy review call with Coach Sandarsh below to evaluate your target companies and unlock +3 extra credits.
             </p>
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <a href={`https://wa.me/919743711584?text=Hi%20Coach%20Sandarsh!%20👋%20I've%20completed%20my%203%20deliverables%20for%20Recruiter%20Reach%20(Code%20%23${_mindlerCode}).%20I%20would%20like%20to%20request%20a%20strategy%20call%20for%20%2B3%20extra%20credits.`} target="_blank" rel="noreferrer" style={{ display: 'inline-block', background: '#C88323', color: 'white', textDecoration: 'none', borderRadius: '12px', padding: '14px 24px', fontWeight: 700, fontSize: '14px' }}>
+              <a href={`https://wa.me/919482055920?text=Hi%20Coach%20Sandarsh!%20👋%20I've%20completed%20my%203%20deliverables%20for%20Recruiter%20Reach%20(Code%20%23${_mindlerCode}).%20I%20would%20like%20to%20request%20a%20strategy%20call%20for%20%2B3%20extra%20credits.`} target="_blank" rel="noreferrer" style={{ display: 'inline-block', background: '#C88323', color: 'white', textDecoration: 'none', borderRadius: '12px', padding: '14px 24px', fontWeight: 700, fontSize: '14px' }}>
                 📞 Request Call with Coach Sandarsh (+3 Credits)
               </a>
               <button onClick={() => setTopUpModalOpen(true)} style={{ background: 'transparent', border: `1.5px solid ${C.amber}`, color: C.dark, borderRadius: '12px', padding: '14px 24px', fontWeight: 700, fontSize: '14px', cursor: 'pointer' }}>
@@ -1286,7 +1286,7 @@ export default function HunterPage() {
             </p>
 
             <a
-              href={`https://wa.me/919743711584?text=Hi%20Coach%20Sandarsh!%20👋%20I%20would%20like%20to%20top%20up%20my%20Recruiter%20Reach%20pass%20for%20%2B3%20days%20(₹299)%20(Code%20%23${_mindlerCode || 'public'}).`}
+              href={`https://wa.me/919482055920?text=Hi%20Coach%20Sandarsh!%20👋%20I%20would%20like%20to%20top%20up%20my%20Recruiter%20Reach%20pass%20for%20%2B3%20days%20(₹299)%20(Code%20%23${_mindlerCode || 'public'}).`}
               target="_blank"
               rel="noreferrer"
               style={{ display: 'block', width: '100%', background: '#16A34A', color: 'white', textAlign: 'center', textDecoration: 'none', borderRadius: '10px', padding: '12px', fontSize: '14px', fontWeight: 800, marginBottom: '16px', boxSizing: 'border-box' }}
