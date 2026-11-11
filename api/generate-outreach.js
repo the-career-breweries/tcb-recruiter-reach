@@ -11,16 +11,15 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const {
-    company,
-    role,
-    recruiter_name,
-    recruiter_title,
-    candidate_name,
-    candidate_skill,
-    candidate_proof,
-    portfolio_url
-  } = req.body || {};
+  const body = req.body || {};
+  const company = body.company || body.targetCompany || body.company_name;
+  const role = body.role || body.targetRole || body.job_title;
+  const recruiter_name = body.recruiter_name || body.recruiterName || body.decisionMakerName;
+  const recruiter_title = body.recruiter_title || body.recruiterTitle || body.decisionMakerTitle;
+  const candidate_name = body.candidate_name || body.candidateName;
+  const candidate_skill = body.candidate_skill || body.candidateSkill || body.coreSkill;
+  const candidate_proof = body.candidate_proof || body.candidateProof || body.proofMetric;
+  const portfolio_url = body.portfolio_url || body.portfolioUrl;
 
   const cCompany = (company || "Target Company").trim();
   const cRole = (role || "Open Role").trim();

@@ -8,7 +8,12 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const { job_url, company, role, location, jd_text } = req.body || {};
+  const body = req.body || {};
+  const job_url = body.job_url || body.url || body.jobUrl;
+  const company = body.company || body.company_name || body.companyName;
+  const role = body.role || body.job_title || body.jobTitle;
+  const location = body.location;
+  const jd_text = body.jd_text || body.jobText || body.text;
 
   // 1. Manual Entry Mode
   if (company && role) {

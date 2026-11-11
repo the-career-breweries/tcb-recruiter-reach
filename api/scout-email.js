@@ -59,7 +59,11 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const { domain, first_name, last_name, company_name } = req.body || {};
+  const body = req.body || {};
+  const domain = body.domain;
+  const first_name = body.first_name || body.firstName;
+  const last_name = body.last_name || body.lastName;
+  const company_name = body.company_name || body.companyName || body.company;
 
   const fRaw = (first_name || "recruiter").trim().toLowerCase().replace(/[^a-z]/g, "");
   const lRaw = (last_name || "").trim().toLowerCase().replace(/[^a-z]/g, "");
