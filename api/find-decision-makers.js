@@ -1,5 +1,5 @@
 // api/find-decision-makers.js
-// Safe Decision-Maker Discovery via Google X-Ray Search with Dynamic Domain Archetypes
+// Safe Decision-Maker Discovery: Direct LinkedIn People Search + Google X-Ray Queries
 
 function classifyDepartment(roleStr, textStr) {
   const combined = `${roleStr || ""} ${textStr || ""}`.toLowerCase();
@@ -33,7 +33,6 @@ export default async function handler(req, res) {
 
   const body = req.body || {};
   let cleanCompany = (body.company || body.company_name || "Target Company").trim();
-  // Never allow "Www" or generic rubbish
   if (cleanCompany.toLowerCase() === "www" || cleanCompany.toLowerCase() === "target company") {
     cleanCompany = "Accenture";
   }
@@ -41,7 +40,6 @@ export default async function handler(req, res) {
   const cleanRole = (body.role || body.job_title || "Sales Representative").trim();
   const department = body.department || classifyDepartment(cleanRole, body.jd_text);
   
-  // Clean location (e.g. "Bengaluru, India" -> "Bengaluru")
   let cleanLoc = (body.location || "India").split(",")[0].trim();
   if (!cleanLoc) cleanLoc = "India";
 
@@ -52,20 +50,23 @@ export default async function handler(req, res) {
       {
         tier: "Hiring Manager / Team Lead",
         role_query: '"Inside Sales Manager" OR "Sales Director" OR "Head of Inside Sales" OR "Inside Sales Lead" OR "VP of Sales"',
+        linkedin_keywords: `${cleanCompany} Inside Sales Manager ${cleanLoc}`,
         icon: "👔",
-        priority: "Highest Reply Rate: Owns the inside sales headcount & revenue targets"
+        priority: "Highest Reply Rate: Owns inside sales quota & hiring decisions"
       },
       {
         tier: "Talent Acquisition Specialist",
         role_query: '"Sales Recruiter" OR "Talent Acquisition Specialist" OR "Technical Recruiter" OR "HR Lead"',
+        linkedin_keywords: `${cleanCompany} Sales Recruiter ${cleanLoc}`,
         icon: "🎯",
-        priority: "Screens sales applicants daily: Managing the active hiring pipeline"
+        priority: "Actively screening applicants for this open sales role"
       },
       {
         tier: "Senior Peer / Potential Teammate",
         role_query: '"Senior Inside Sales" OR "Senior Account Executive" OR "Inside Sales Specialist"',
+        linkedin_keywords: `${cleanCompany} Senior Inside Sales ${cleanLoc}`,
         icon: "🤝",
-        priority: "Alumni / Peer Referral: Can fast-track your resume through the internal portal"
+        priority: "Peer in this exact pod: Can fast-track you via internal referral"
       }
     ];
   } else if (department === "Career Services & Placements") {
@@ -73,18 +74,21 @@ export default async function handler(req, res) {
       {
         tier: "Hiring Manager / Team Lead",
         role_query: '"Head of Placements" OR "Director of Career Services" OR "VP of Outcomes" OR "Corporate Relations Head"',
+        linkedin_keywords: `${cleanCompany} Head of Placements ${cleanLoc}`,
         icon: "👔",
         priority: "Highest Reply Rate: Direct supervisor for placement & corporate relations pods"
       },
       {
         tier: "Talent Acquisition Specialist",
         role_query: '"Talent Acquisition Specialist" OR "HR Manager" OR "Recruitment Lead"',
+        linkedin_keywords: `${cleanCompany} Talent Acquisition ${cleanLoc}`,
         icon: "🎯",
-        priority: "Screens applications daily: Has direct access to the hiring panel"
+        priority: "Screens applications daily: Has direct access to hiring panel"
       },
       {
         tier: "Senior Peer / Potential Teammate",
         role_query: '"Placements Manager" OR "Senior Career Services Specialist" OR "Corporate Relations Lead"',
+        linkedin_keywords: `${cleanCompany} Placements Manager ${cleanLoc}`,
         icon: "🤝",
         priority: "Peer in team: Can submit your profile for internal referral bonuses"
       }
@@ -94,18 +98,21 @@ export default async function handler(req, res) {
       {
         tier: "Hiring Manager / Team Lead",
         role_query: '"VP of Product" OR "Head of Product" OR "Director of Product" OR "Group Product Manager"',
+        linkedin_keywords: `${cleanCompany} Head of Product ${cleanLoc}`,
         icon: "👔",
-        priority: "Highest Reply Rate: Product leader managing the specific roadmap"
+        priority: "Highest Reply Rate: Product leader managing this roadmap"
       },
       {
         tier: "Talent Acquisition Specialist",
         role_query: '"Product Recruiter" OR "Talent Acquisition Specialist" OR "Technical Recruiter"',
+        linkedin_keywords: `${cleanCompany} Product Recruiter ${cleanLoc}`,
         icon: "🎯",
         priority: "Dedicated recruiter for product management roles"
       },
       {
         tier: "Senior Peer / Potential Teammate",
         role_query: '"Senior Product Manager" OR "Principal Product Manager" OR "Lead Designer"',
+        linkedin_keywords: `${cleanCompany} Senior Product Manager ${cleanLoc}`,
         icon: "🤝",
         priority: "Peer referral: Evaluates cultural and problem-solving fit"
       }
@@ -115,18 +122,21 @@ export default async function handler(req, res) {
       {
         tier: "Hiring Manager / Team Lead",
         role_query: '"Marketing Director" OR "Head of Marketing" OR "VP of Marketing" OR "Head of Growth"',
+        linkedin_keywords: `${cleanCompany} Head of Marketing ${cleanLoc}`,
         icon: "👔",
         priority: "Owns the marketing budget and open headcount"
       },
       {
         tier: "Talent Acquisition Specialist",
         role_query: '"Marketing Recruiter" OR "Talent Acquisition Specialist" OR "HR Lead"',
+        linkedin_keywords: `${cleanCompany} Marketing Recruiter ${cleanLoc}`,
         icon: "🎯",
         priority: "Screens marketing and growth applicants"
       },
       {
         tier: "Senior Peer / Potential Teammate",
         role_query: '"Senior Marketing Manager" OR "Growth Specialist" OR "Content Lead"',
+        linkedin_keywords: `${cleanCompany} Senior Marketing Manager ${cleanLoc}`,
         icon: "🤝",
         priority: "Peer referral: Can vouch for execution skills"
       }
@@ -137,40 +147,45 @@ export default async function handler(req, res) {
       {
         tier: "Hiring Manager / Team Lead",
         role_query: `"Engineering Manager" OR "Tech Lead" OR "VP of Engineering" OR "Director of Engineering" OR "Lead ${roleBase}"`,
+        linkedin_keywords: `${cleanCompany} Engineering Manager ${cleanLoc}`,
         icon: "👔",
         priority: "Highest Reply Rate: Owns the engineering team's open headcount"
       },
       {
         tier: "Talent Acquisition Specialist",
         role_query: '"Technical Recruiter" OR "Talent Acquisition Specialist" OR "Engineering Recruiter"',
+        linkedin_keywords: `${cleanCompany} Technical Recruiter ${cleanLoc}`,
         icon: "🎯",
         priority: "Screens technical resumes daily: Manages active pipeline"
       },
       {
         tier: "Senior Peer / Potential Teammate",
         role_query: `"Senior ${roleBase}" OR "Staff ${roleBase}" OR "Lead ${roleBase}"`,
+        linkedin_keywords: `${cleanCompany} Senior ${roleBase} ${cleanLoc}`,
         icon: "🤝",
         priority: "Alumni / Peer Referral: Can refer internally for referral bonuses"
       }
     ];
   } else {
-    // Dynamic Fallback
     targets = [
       {
         tier: "Hiring Manager / Team Lead",
         role_query: `"${cleanRole}" AND ("Manager" OR "Director" OR "Head" OR "Lead")`,
+        linkedin_keywords: `${cleanCompany} ${cleanRole} Manager ${cleanLoc}`,
         icon: "👔",
         priority: "Highest Reply Rate: Department leader overseeing this role"
       },
       {
         tier: "Talent Acquisition Specialist",
         role_query: '"Talent Acquisition Specialist" OR "Technical Recruiter" OR "HR Manager"',
+        linkedin_keywords: `${cleanCompany} Recruiter ${cleanLoc}`,
         icon: "🎯",
         priority: "Screens applications daily"
       },
       {
         tier: "Senior Peer / Potential Teammate",
         role_query: `"Senior ${cleanRole}" OR "Lead ${cleanRole}"`,
+        linkedin_keywords: `${cleanCompany} Senior ${cleanRole} ${cleanLoc}`,
         icon: "🤝",
         priority: "Senior peer in the same domain"
       }
@@ -178,7 +193,10 @@ export default async function handler(req, res) {
   }
 
   const results = targets.map(t => {
-    // Exact Google X-Ray query ensuring company name is strictly quoted and LinkedIn profiles only
+    // 1. Direct LinkedIn People Search URL (takes logged-in user straight to LinkedIn profiles)
+    const linkedinDirectUrl = `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(t.linkedin_keywords)}&origin=GLOBAL_SEARCH_HEADER`;
+    
+    // 2. Google X-Ray Search URL (for public Google search results)
     const dorkQuery = `site:linkedin.com/in "${cleanCompany}" (${t.role_query}) "${cleanLoc}"`;
     const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(dorkQuery)}`;
 
@@ -187,8 +205,11 @@ export default async function handler(req, res) {
       icon: t.icon,
       priority: t.priority,
       recommended_titles: t.role_query.replace(/OR/g, "·").replace(/[()"]/g, "").trim(),
+      linkedin_keywords: t.linkedin_keywords,
+      linkedin_url: linkedinDirectUrl,
+      google_url: googleSearchUrl,
       dork_query: dorkQuery,
-      search_url: googleSearchUrl
+      search_url: linkedinDirectUrl // Default primary action to LinkedIn
     };
   });
 
