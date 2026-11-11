@@ -42,8 +42,8 @@ export default function HunterPage() {
 
   const [sentinelState, setSentinelState] = useState({
     loading: _isMindlerUser,
-    allowed: !_isMindlerUser,
-    status: _isMindlerUser ? 'CHECKING' : 'OPEN',
+    allowed: false,
+    status: _isMindlerUser ? 'CHECKING' : 'NO_PASS',
     creditsRemaining: 3,
     role: null,
     deviceNumber: 1,
@@ -107,7 +107,10 @@ export default function HunterPage() {
 
   // Sentinel Device & Pass Verification
   const verifyCurrentDevice = async (takeSession = false) => {
-    if (!_mindlerCode) return;
+    if (!_mindlerCode) {
+      setSentinelState({ loading: false, allowed: false, status: 'NO_PASS' });
+      return;
+    }
     const devHash = getDeviceFingerprint();
     const devName = /iPhone|iPad|Android/.test(navigator.userAgent) ? 'Mobile Device' : (/Mac/.test(navigator.userAgent) ? 'MacBook' : 'Windows PC');
 
@@ -172,16 +175,13 @@ export default function HunterPage() {
         });
       }
     } catch {
-      sessionStorage.setItem('tcb_founder_bypass', '1');
       setSentinelState({
         loading: false,
-        allowed: true,
-        status: 'AUTHORIZED',
-        creditsRemaining: Math.max(0, 3 - localUsed),
-        role: 'PRIMARY',
-        deviceNumber: 1,
-        validUntil: Date.now() + 7 * 86400000,
-        message: 'Offline verified'
+        allowed: false,
+        status: 'NETWORK_ERROR',
+        creditsRemaining: 0,
+        role: null,
+        message: 'Could not connect to Sentinel security server. Please check your network and refresh.'
       });
     }
   };
@@ -459,14 +459,68 @@ export default function HunterPage() {
   const remainingDeliverables = Math.max(0, Math.min(sentinelState.creditsRemaining, 3 - localUsed));
   const passRemaining = getPassRemainingTime();
 
-  // ── Sentinel Gate Screens (for VIP License Holders) ──
-  if (_isMindlerUser && !sentinelState.allowed) {
+  // ── Sentinel Gate Screens ──
+  if (!sentinelState.allowed) {
     if (sentinelState.loading) {
       return (
         <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
           <img src="/tcb-logo.png" alt="TCB" style={{ width: '56px', height: '56px', marginBottom: '20px', animation: 'pulse 1.5s infinite' }} />
           <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: '22px', color: C.dark, marginBottom: '8px' }}>Authenticating Hardware Pass…</h2>
           <p style={{ fontSize: '13px', color: C.soft }}>Verifying license with TCB Sentinel Engine</p>
+        </div>
+      );
+    }
+
+    // 🔒 NO PASS (Public visitor / No VIP Code)
+    if (!_isMindlerUser || sentinelState.status === 'NO_PASS') {
+      return (
+        <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+          <div style={{ background: C.mist, border: `2px solid ${C.amber}`, borderRadius: '20px', padding: '36px', maxWidth: '520px', width: '100%', textAlign: 'center', boxShadow: '0 16px 48px rgba(0,0,0,0.1)' }}>
+            <div style={{ width: '64px', height: '64px', borderRadius: '16px', background: 'rgba(201,123,42,0.15)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', marginBottom: '16px' }}>
+              🔒
+            </div>
+            <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: '24px', color: C.dark, marginBottom: '10px' }}>
+              Paid VIP Access Required
+            </h2>
+            <div style={{ display: 'inline-block', background: 'rgba(201,123,42,0.12)', color: C.amber, fontFamily: "'JetBrains Mono', monospace", fontSize: '11px', fontWeight: 700, padding: '4px 12px', borderRadius: '20px', marginBottom: '18px' }}>
+              Strictly Paid Access • No Free Trials
+            </div>
+            <p style={{ fontSize: '14px', color: C.soft, lineHeight: 1.6, marginBottom: '24px' }}>
+              Recruiter Reach is an executive-grade job acquisition engine reserved for verified candidates. Unlock your <b>7-Day Access Pass for ₹999</b> (locked to 2 devices) to scout hiring managers, resolve work emails, and generate tailored outreach scripts.
+            </p>
+            <a
+              href="https://wa.me/919743711584?text=Hi%20Coach%20Sandarsh!%20👋%20I%20would%20like%20to%20get%20a%207-Day%20Access%20Pass%20for%20Recruiter%20Reach%20(₹999)."
+              target="_blank"
+              rel="noreferrer"
+              style={{ display: 'block', width: '100%', background: C.amber, color: '#1C1410', textDecoration: 'none', borderRadius: '12px', padding: '14px', fontSize: '15px', fontWeight: 800, marginBottom: '16px', boxShadow: '0 4px 16px rgba(201,123,42,0.3)', boxSizing: 'border-box' }}
+            >
+              ⚡ Get 7-Day Access Pass for ₹999 (WhatsApp)
+            </a>
+
+            <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: '18px', marginTop: '14px' }}>
+              <label style={{ display: 'block', fontSize: '11px', fontFamily: "'JetBrains Mono', monospace", color: C.soft, marginBottom: '8px', textTransform: 'uppercase', fontWeight: 700 }}>
+                Already Enrolled? Enter Your 4-Digit Passcode:
+              </label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  maxLength={6}
+                  placeholder="e.g. 8287"
+                  id="direct-pass-code"
+                  style={{ flex: 1, padding: '10px 12px', borderRadius: '8px', border: `1.5px solid ${C.border}`, background: C.cream, color: C.dark, fontSize: '14px', textAlign: 'center', fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", outline: 'none' }}
+                />
+                <button
+                  onClick={() => {
+                    const c = document.getElementById('direct-pass-code').value.trim();
+                    if (c) window.location.href = `/mindler-user-${c}`;
+                  }}
+                  style={{ background: C.dark, color: C.cream, border: 'none', borderRadius: '8px', padding: '0 16px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Unlock →
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       );
     }
@@ -681,48 +735,30 @@ export default function HunterPage() {
         </div>
 
         {/* ── Quota & Pass Status Indicator ── */}
-        {_isMindlerUser ? (
-          <div style={{ background: 'rgba(201,123,42,0.08)', border: `1.5px solid ${C.amber}`, borderRadius: '12px', padding: '12px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '10px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '12px', fontWeight: 700, color: C.amber }}>
-                ⭐ VIP Licensed Recon: {remainingDeliverables} of 3 Hunts Remaining
-              </span>
-              {passRemaining && (
-                <span style={{ background: passRemaining.color === '#EF4444' ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)', color: passRemaining.color, border: `1px solid ${passRemaining.color}`, borderRadius: '20px', padding: '2px 10px', fontSize: '11px', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
-                  ⏳ 7-Day Pass: {passRemaining.text}
-                </span>
-              )}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={{ fontSize: '11px', color: C.soft }}>📱 Device {sentinelState.deviceNumber} of 2 (Active Session)</span>
-              <button
-                onClick={() => setTopUpModalOpen(true)}
-                style={{ background: C.mist, border: `1px solid ${C.amber}`, color: C.amber, borderRadius: '8px', padding: '5px 12px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
-              >
-                +3 Days Top-Up
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div style={{ background: 'rgba(201,123,42,0.08)', border: `1.5px solid ${C.amber}`, borderRadius: '12px', padding: '12px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '10px' }}>
+        <div style={{ background: 'rgba(201,123,42,0.08)', border: `1.5px solid ${C.amber}`, borderRadius: '12px', padding: '12px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '12px', fontWeight: 700, color: C.amber }}>
-              🎯 Complimentary Free Trial: {Math.max(0, 3 - localUsed)} of 3 Drills Remaining
+              ⭐ VIP Licensed Pass: {sentinelState.creditsRemaining} of 3 Deliverables Left
             </span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <a
-                href="https://wa.me/919743711584?text=Hi%20Coach%20Sandarsh!%20👋%20I%20would%20like%20to%20unlock%20the%207-Day%20Recruiter%20Reach%20Pass%20for%20₹999."
-                target="_blank"
-                rel="noreferrer"
-                style={{ fontSize: '11px', fontWeight: 700, color: C.amber, textDecoration: 'none', border: `1px solid ${C.amber}`, padding: '5px 12px', borderRadius: '8px' }}
-              >
-                ⚡ Unlock 7-Day Pass (₹999) ↗
-              </a>
-            </div>
+            {passRemaining && (
+              <span style={{ background: passRemaining.color === '#EF4444' ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)', color: passRemaining.color, border: `1px solid ${passRemaining.color}`, borderRadius: '20px', padding: '2px 10px', fontSize: '11px', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
+                ⏳ 7-Day Pass: {passRemaining.text}
+              </span>
+            )}
           </div>
-        )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ fontSize: '11px', color: C.soft }}>📱 Device {sentinelState.deviceNumber} of 2 (Active Session)</span>
+            <button
+              onClick={() => setTopUpModalOpen(true)}
+              style={{ background: C.mist, border: `1px solid ${C.amber}`, color: C.amber, borderRadius: '8px', padding: '5px 12px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+            >
+              +3 Days Top-Up
+            </button>
+          </div>
+        </div>
 
         {/* ── Quota Exhausted Card ── */}
-        {_isMindlerUser && (sentinelState.creditsRemaining <= 0 || localUsed >= 3) ? (
+        {sentinelState.creditsRemaining <= 0 && (
           <div style={{ background: 'rgba(200,131,35,0.12)', border: '1.5px solid #C88323', borderRadius: '16px', padding: '28px', textAlign: 'center', marginBottom: '32px' }}>
             <div style={{ fontSize: '2.5rem', marginBottom: '8px' }}>⭐</div>
             <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: '20px', color: '#C88323', marginBottom: '8px' }}>All 3 Licensed Hunts Completed!</h3>
@@ -738,54 +774,9 @@ export default function HunterPage() {
               </button>
             </div>
           </div>
-        ) : (!_isMindlerUser && localUsed >= 3) ? (
-          <div style={{ background: 'rgba(200,131,35,0.12)', border: '1.5px solid #C88323', borderRadius: '16px', padding: '32px', textAlign: 'center', marginBottom: '32px' }}>
-            <div style={{ fontSize: '2.5rem', marginBottom: '8px' }}>🚀</div>
-            <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: '22px', color: '#C88323', marginBottom: '10px' }}>
-              3 Free Reconnaissance Drills Completed!
-            </h3>
-            <p style={{ fontSize: '14px', color: C.soft, lineHeight: 1.6, maxWidth: '580px', margin: '0 auto 20px' }}>
-              You have experienced the precision of Recruiter Reach! Unlock your full <b>7-Day Outbound Access Pass for ₹999</b> (locked to 2 devices, 1 active session at a time) or activate your VIP Passcode below.
-            </p>
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '24px' }}>
-              <a
-                href="https://wa.me/919743711584?text=Hi%20Coach%20Sandarsh!%20👋%20I've%20completed%20my%203%20free%20trials%20for%20Recruiter%20Reach.%20I%20would%20like%20to%20unlock%20the%207-Day%20Pass%20for%20₹999."
-                target="_blank"
-                rel="noreferrer"
-                style={{ display: 'inline-block', background: '#16A34A', color: 'white', textDecoration: 'none', borderRadius: '12px', padding: '14px 28px', fontWeight: 800, fontSize: '14px', boxShadow: '0 4px 16px rgba(22,163,74,0.3)' }}
-              >
-                ⚡ Unlock 7-Day Pass for ₹999
-              </a>
-            </div>
+        )}
 
-            <div style={{ maxWidth: '380px', margin: '0 auto', borderTop: `1px solid ${C.border}`, paddingTop: '18px' }}>
-              <label style={{ display: 'block', fontSize: '11px', fontFamily: "'JetBrains Mono', monospace", color: C.soft, marginBottom: '8px', textTransform: 'uppercase', fontWeight: 700 }}>
-                Already have a 4-Digit VIP Passcode?
-              </label>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <input
-                  type="text"
-                  placeholder="Enter Passcode (e.g. 7755)"
-                  value={vipCodeInput}
-                  onChange={e => setVipCodeInput(e.target.value)}
-                  style={{ flex: 1, padding: '10px 12px', borderRadius: '8px', border: `1.5px solid ${C.border}`, background: C.cream, color: C.dark, fontSize: '13px', outline: 'none' }}
-                />
-                <button
-                  onClick={() => {
-                    if (vipCodeInput.trim()) {
-                      window.location.href = `/mindler-user-${vipCodeInput.trim()}`;
-                    }
-                  }}
-                  disabled={!vipCodeInput.trim()}
-                  style={{ background: C.amber, color: '#1C1410', border: 'none', borderRadius: '8px', padding: '0 16px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
-                >
-                  Activate
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : (
-          /* ── Progressive Unified Input Card ── */
+        {/* ── Progressive Unified Input Card ── */}
           <div style={{ background: C.mist, border: `1.5px solid ${C.border}`, borderRadius: '16px', padding: '28px', marginBottom: '32px', boxShadow: '0 8px 24px rgba(0,0,0,0.04)' }}>
             
             {/* 1. Job Source: URL Quick-Import */}
@@ -903,7 +894,6 @@ export default function HunterPage() {
               </button>
             </div>
           </div>
-        )}
 
         {/* ── Live Scanning Indicator ── */}
         {isScanning && (
