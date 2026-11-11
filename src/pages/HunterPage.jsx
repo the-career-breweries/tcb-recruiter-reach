@@ -81,10 +81,58 @@ export default function HunterPage() {
   const [isDetecting, setIsDetecting] = useState(false);
 
   // Candidate Profile State
-  const [candidateName, setCandidateName] = useState('ABC');
-  const [candidateSkill, setCandidateSkill] = useState('Inside Sales');
-  const [candidateProof, setCandidateProof] = useState('Have onboarded 100+ clients in a span of 7 months');
-  const [portfolioUrl, setPortfolioUrl] = useState('https://linkedin.com/in/rohan-sharma');
+  const [candidateName, setCandidateName] = useState('');
+  const [candidateSkill, setCandidateSkill] = useState('');
+  const [candidateProof, setCandidateProof] = useState('');
+  const [portfolioUrl, setPortfolioUrl] = useState('');
+  const [uploadedResumeName, setUploadedResumeName] = useState('');
+  const [isParsingResume, setIsParsingResume] = useState(false);
+  const [resumeParseSuccess, setResumeParseSuccess] = useState(false);
+  const [resumeParseErr, setResumeParseErr] = useState('');
+
+  const handleResumeUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadedResumeName(file.name);
+    setIsParsingResume(true);
+    setResumeParseSuccess(false);
+    setResumeParseErr('');
+
+    try {
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        try {
+          const b64 = ev.target.result.split(',')[1];
+          const res = await fetch('/api/parse-resume', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              resumeBase64: b64,
+              mediaType: file.type || 'application/pdf'
+            })
+          });
+          const data = await res.json();
+          if (data.success) {
+            if (data.candidateName) setCandidateName(data.candidateName);
+            if (data.candidateSkill) setCandidateSkill(data.candidateSkill);
+            if (data.candidateProof) setCandidateProof(data.candidateProof);
+            if (data.portfolioUrl) setPortfolioUrl(data.portfolioUrl);
+            setResumeParseSuccess(true);
+          } else {
+            setResumeParseErr(data.error || 'Could not auto-extract credentials. Please enter manually.');
+          }
+        } catch {
+          setResumeParseErr('Failed to scan resume. You can still enter details manually.');
+        } finally {
+          setIsParsingResume(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      setIsParsingResume(false);
+      setResumeParseErr('Error reading file. Please enter manually.');
+    }
+  };
 
   // Execution & Output State
   const [isScanning, setIsScanning] = useState(false);
@@ -862,8 +910,53 @@ export default function HunterPage() {
 
             {/* 4. Candidate Credentials */}
             <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: '20px', marginTop: '20px' }}>
-              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '11px', textTransform: 'uppercase', color: C.amber, fontWeight: 700, marginBottom: '12px' }}>
-                Your Candidate Credentials
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '11px', textTransform: 'uppercase', color: C.amber, fontWeight: 700 }}>
+                  Your Candidate Credentials
+                </div>
+                <span style={{ fontSize: '11px', color: C.soft }}>Auto-fill with resume or enter below</span>
+              </div>
+
+              {/* 📄 1-Click Resume Upload Dropzone */}
+              <div style={{ background: 'rgba(201,123,42,0.06)', border: `1.5px dashed ${C.amber}`, borderRadius: '12px', padding: '16px 20px', marginBottom: '18px' }}>
+                <input
+                  type="file"
+                  id="recruiter-resume-upload"
+                  accept=".pdf,.doc,.docx,.txt"
+                  style={{ display: 'none' }}
+                  onChange={handleResumeUpload}
+                />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span style={{ fontSize: '24px' }}>📄</span>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: C.dark }}>
+                        {uploadedResumeName ? `Loaded: ${uploadedResumeName}` : '1-Click Auto-Fill with Your Resume'}
+                      </div>
+                      <div style={{ fontSize: '11.5px', color: C.soft }}>
+                        {isParsingResume ? 'Analyzing skills, metrics, and experience…' : 'PDF, DOCX, or TXT — auto-extracts your name, skills, and top proof metric'}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => document.getElementById('recruiter-resume-upload').click()}
+                    disabled={isParsingResume}
+                    style={{ background: C.amber, color: '#1C1410', border: 'none', borderRadius: '8px', padding: '8px 16px', fontWeight: 700, fontSize: '12px', cursor: isParsingResume ? 'not-allowed' : 'pointer' }}
+                  >
+                    {isParsingResume ? 'Scanning…' : (uploadedResumeName ? 'Replace Resume' : 'Upload Resume →')}
+                  </button>
+                </div>
+                {resumeParseSuccess && (
+                  <div style={{ marginTop: '10px', fontSize: '11.5px', color: '#16A34A', fontWeight: 600 }}>
+                    ✓ Resume successfully analyzed! Your credentials have been auto-populated below.
+                  </div>
+                )}
+                {resumeParseErr && (
+                  <div style={{ marginTop: '10px', fontSize: '11.5px', color: '#EF4444' }}>
+                    {resumeParseErr}
+                  </div>
+                )}
               </div>
               
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '14px' }}>
