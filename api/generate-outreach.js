@@ -76,15 +76,15 @@ CRITICAL INSTRUCTIONS:
    - Sentence 1 (Present): Present capability in ${cSkill} tied directly to the JD.
    - Sentence 2 (Past): The single best proof metric (${cProof}) demonstrating execution rigor.
    - Sentence 3 (Future): How they will solve the team's goals at ${cCompany} + 5-minute call call-to-action.
-3. "bluf_email_subject": Attention-grabbing subject line with BLUF tags (e.g., Application: ${cRole} (${cSkill} • Quantified Metric) — ${cCandidate}).
-4. "bluf_email_body": Executive Bottom Line Up Front email with 3 specific bullet points mapped directly to the actual responsibilities in the Job Description (e.g. client qualification, pipeline ownership, onboarding adoption). Never use generic phrases like "excited by engineering standards" if this is a sales or non-tech role!
+3. "email_for_application_subject": Compelling subject line for application email (e.g., Application: ${cRole} (${cSkill} • Quantified Metric) — ${cCandidate}).
+4. "email_for_application_body": Polished Job Application Email with 3 specific bullet points mapped directly to the actual responsibilities in the Job Description (e.g. client qualification, pipeline ownership, onboarding adoption). Never use generic phrases like "excited by engineering standards" if this is a sales or non-tech role!
 
 Return ONLY raw JSON with keys:
 {
   "linkedin_note": "string <= 285 chars",
   "inmail_pitch": "string (3 sentences)",
-  "bluf_email_subject": "string",
-  "bluf_email_body": "string"
+  "email_for_application_subject": "string",
+  "email_for_application_body": "string"
 }`;
 
       const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
@@ -107,14 +107,18 @@ Return ONLY raw JSON with keys:
           const parsed = JSON.parse(rawJsonText);
           let note = (parsed.linkedin_note || "").trim();
           if (note.length > 295) note = note.slice(0, 290) + "...";
+          const appSubj = (parsed.email_for_application_subject || parsed.bluf_email_subject || "").trim();
+          const appBody = (parsed.email_for_application_body || parsed.bluf_email_body || "").trim();
 
           return res.status(200).json({
             success: true,
             source: "gemini-2.5-flash",
             linkedin_note: note,
             inmail_pitch: (parsed.inmail_pitch || "").trim(),
-            bluf_email_subject: (parsed.bluf_email_subject || "").trim(),
-            bluf_email_body: (parsed.bluf_email_body || "").trim()
+            email_for_application_subject: appSubj,
+            email_for_application_body: appBody,
+            bluf_email_subject: appSubj,
+            bluf_email_body: appBody
           });
         }
       }
@@ -178,7 +182,7 @@ Return ONLY raw JSON with keys:
 
   const emailBody = `Hi ${cRecruiter},
 
-Bottom Line Up Front: I am reaching out to formally apply for the ${cRole} opening at ${cCompany}. I bring hands-on expertise in ${cSkill} and a proven track record of execution.
+I am writing to formally apply for the ${cRole} opening at ${cCompany}. I bring hands-on expertise in ${cSkill} and a proven track record of execution.
 
 Key highlights relevant to your opening:
 • ${emailBullets[0]}
@@ -196,6 +200,8 @@ ${cPortfolio}`;
     source: "celta-domain-engine",
     linkedin_note: noteText,
     inmail_pitch: inmailPitch,
+    email_for_application_subject: emailSubject,
+    email_for_application_body: emailBody,
     bluf_email_subject: emailSubject,
     bluf_email_body: emailBody
   });

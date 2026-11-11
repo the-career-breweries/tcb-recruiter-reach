@@ -319,11 +319,11 @@ export default function HunterPage() {
       
       {/* ── Global Header ── */}
       <header style={{ borderBottom: `1px solid ${C.border}`, padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, background: theme === 'dark' ? 'rgba(20,16,8,0.92)' : 'rgba(250,243,232,0.92)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ width: '32px', height: '32px', background: C.amber, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1C1410', fontWeight: 800, fontSize: '14px', fontFamily: "'JetBrains Mono', monospace" }}>R</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <img src="/tcb-logo.png" alt="The Career Breweries" style={{ width: '38px', height: '38px', borderRadius: '8px', objectFit: 'contain' }} />
           <div>
-            <div style={{ fontFamily: "'Fraunces', serif", fontSize: '18px', fontWeight: 600, color: C.dark }}>The Career Breweries</div>
-            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', color: C.amber, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Recruiter Reach • Outbound Hunter</div>
+            <div style={{ fontFamily: "'Fraunces', serif", fontSize: '18px', fontWeight: 700, color: C.dark, letterSpacing: '-0.01em' }}>The Career Breweries</div>
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', color: C.amber, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700 }}>Recruiter Reach • Outbound Hunter</div>
           </div>
         </div>
 
@@ -348,8 +348,8 @@ export default function HunterPage() {
       <main style={{ maxWidth: '960px', margin: '0 auto', padding: '40px 20px 80px' }}>
         
         <div style={{ textAlign: 'center', marginBottom: '36px' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 14px', borderRadius: '20px', background: 'rgba(201,123,42,0.12)', border: `1px solid ${C.amber}`, marginBottom: '16px' }}>
-            <span style={{ fontSize: '14px' }}>🎯</span>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', padding: '6px 16px', borderRadius: '24px', background: 'rgba(201,123,42,0.12)', border: `1.5px solid ${C.amber}`, marginBottom: '18px' }}>
+            <img src="/tcb-logo.png" alt="TCB" style={{ width: '20px', height: '20px', objectFit: 'contain' }} />
             <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '11px', color: C.amber, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Precision Job Acquisition Engine</span>
           </div>
           <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: '36px', lineHeight: 1.25, color: C.dark, marginBottom: '14px' }}>
@@ -511,7 +511,7 @@ export default function HunterPage() {
               {scanStep === 1 && '1/4 Validating Target Company & Functional Domain…'}
               {scanStep === 2 && '2/4 Formulating Direct LinkedIn People Search Links…'}
               {scanStep === 3 && '3/4 Inspecting Corporate Mail Gateway Firewalls…'}
-              {scanStep === 4 && '4/4 Synthesizing 300-Char LinkedIn Note & Executive B.L.U.F. Email…'}
+              {scanStep === 4 && '4/4 Synthesizing 300-Char LinkedIn Note & Email for Application…'}
             </div>
             <p style={{ fontSize: '12px', color: C.soft }}>Calibrating specifically to your target role to prevent generic templates.</p>
           </div>
@@ -658,7 +658,7 @@ export default function HunterPage() {
                     2. 3-Sentence InMail
                   </button>
                   <button onClick={() => setActiveOutputTab('email')} style={{ background: activeOutputTab === 'email' ? C.amber : 'transparent', color: activeOutputTab === 'email' ? '#fff' : C.soft, border: 'none', borderRadius: '6px', padding: '6px 12px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>
-                    3. B.L.U.F. Email
+                    3. Email for Application
                   </button>
                 </div>
               </div>
@@ -697,17 +697,17 @@ export default function HunterPage() {
               {activeOutputTab === 'email' && (
                 <div style={{ background: C.cream, border: `1px solid ${C.border}`, borderRadius: '12px', padding: '18px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: C.dark }}>Executive B.L.U.F. Job Application Email</span>
-                    <button onClick={() => triggerCopyModal(`${huntResults.outreach.bluf_email_subject}\n\n${huntResults.outreach.bluf_email_body}`, 'Executive B.L.U.F. Cover Email', 'email')} style={{ background: C.amber, color: '#1C1410', border: 'none', borderRadius: '6px', padding: '6px 12px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>
-                      📋 Copy Full Email
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: C.dark }}>Email for Application</span>
+                    <button onClick={() => triggerCopyModal(`${huntResults.outreach.email_for_application_subject || huntResults.outreach.bluf_email_subject}\n\n${huntResults.outreach.email_for_application_body || huntResults.outreach.bluf_email_body}`, 'Email for Application', 'email')} style={{ background: C.amber, color: '#1C1410', border: 'none', borderRadius: '6px', padding: '6px 12px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>
+                      📋 Copy Email for Application
                     </button>
                   </div>
                   <div style={{ background: C.bg, padding: '14px', borderRadius: '8px', border: `1px solid ${C.border}`, marginBottom: '12px' }}>
                     <div style={{ fontSize: '11px', color: C.soft, textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace", marginBottom: '4px' }}>Subject Line:</div>
-                    <div style={{ fontSize: '13px', fontWeight: 700, color: C.dark }}>{huntResults.outreach.bluf_email_subject}</div>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: C.dark }}>{huntResults.outreach.email_for_application_subject || huntResults.outreach.bluf_email_subject}</div>
                   </div>
                   <pre style={{ whiteSpace: 'pre-wrap', fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: '14px', lineHeight: 1.6, color: C.ink, background: C.bg, padding: '14px', borderRadius: '8px', border: `1px solid ${C.border}` }}>
-                    {huntResults.outreach.bluf_email_body}
+                    {huntResults.outreach.email_for_application_body || huntResults.outreach.bluf_email_body}
                   </pre>
                 </div>
               )}
