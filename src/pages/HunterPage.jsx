@@ -46,8 +46,25 @@ export default function HunterPage() {
     status: _isMindlerUser ? 'CHECKING' : 'OPEN',
     creditsRemaining: 3,
     role: null,
+    deviceNumber: 1,
+    validUntil: null,
+    activeDeviceName: null,
     message: ''
   });
+
+  const [topUpModalOpen, setTopUpModalOpen] = useState(false);
+  const [topUpCodeInput, setTopUpCodeInput] = useState('');
+  const [isTopUpLoading, setIsTopUpLoading] = useState(false);
+  const [otpInput, setOtpInput] = useState('');
+  const [otpError, setOtpError] = useState('');
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [vipCodeInput, setVipCodeInput] = useState('');
+  const [nowTimer, setNowTimer] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNowTimer(Date.now()), 30000);
+    return () => clearInterval(timer);
+  }, []);
 
   const LOCAL_QUOTA_KEY = `tcb_quota_${_mindlerCode || 'public'}`;
   const [localUsed, setLocalUsed] = useState(() => {
@@ -88,35 +105,162 @@ export default function HunterPage() {
   });
   const [copySuccessToast, setCopySuccessToast] = useState('');
 
-  // Sentinel Device Verification
-  useEffect(() => {
+  // Sentinel Device & Pass Verification
+  const verifyCurrentDevice = async (takeSession = false) => {
     if (!_mindlerCode) return;
     const devHash = getDeviceFingerprint();
     const devName = /iPhone|iPad|Android/.test(navigator.userAgent) ? 'Mobile Device' : (/Mac/.test(navigator.userAgent) ? 'MacBook' : 'Windows PC');
 
-    fetch('https://tcb-sentinel.vercel.app/api/verify-device', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: _mindlerCode, device_hash: devHash, device_name: devName })
-    })
-    .then(r => r.json())
-    .then(d => {
+    try {
+      const res = await fetch('https://tcb-sentinel.vercel.app/api/verify-device', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: _mindlerCode, device_hash: devHash, device_name: devName, take_session: takeSession })
+      });
+      const d = await res.json();
       if (d.allowed) {
         sessionStorage.setItem('tcb_founder_bypass', '1');
-        setSentinelState({ loading: false, allowed: true, status: 'AUTHORIZED', creditsRemaining: d.credits_remaining !== undefined ? d.credits_remaining : 3, role: d.role, message: d.message });
+        setSentinelState({
+          loading: false,
+          allowed: true,
+          status: 'AUTHORIZED',
+          creditsRemaining: d.credits_remaining !== undefined ? d.credits_remaining : 3,
+          role: d.role,
+          deviceNumber: d.deviceNumber || 1,
+          validUntil: d.valid_until,
+          activeDeviceName: d.active_device_name,
+          message: d.message
+        });
+      } else if (d.status === 'SESSION_CONFLICT') {
+        sessionStorage.removeItem('tcb_founder_bypass');
+        setSentinelState({
+          loading: false,
+          allowed: false,
+          status: 'SESSION_CONFLICT',
+          activeDeviceName: d.active_device_name || 'Other Registered Device',
+          validUntil: d.valid_until,
+          message: d.message
+        });
+      } else if (d.status === 'EXPIRED') {
+        sessionStorage.removeItem('tcb_founder_bypass');
+        setSentinelState({
+          loading: false,
+          allowed: false,
+          status: 'EXPIRED',
+          validUntil: d.valid_until,
+          message: d.message
+        });
       } else if (d.status === 'OTP_REQUIRED') {
         sessionStorage.removeItem('tcb_founder_bypass');
-        setSentinelState({ loading: false, allowed: false, status: 'OTP_REQUIRED', creditsRemaining: 0, role: 'SECONDARY', message: d.message });
+        setSentinelState({
+          loading: false,
+          allowed: false,
+          status: 'OTP_REQUIRED',
+          creditsRemaining: 0,
+          role: 'SECONDARY',
+          message: d.message
+        });
       } else {
         sessionStorage.removeItem('tcb_founder_bypass');
-        setSentinelState({ loading: false, allowed: false, status: 'BLOCKED', creditsRemaining: 0, role: null, message: d.message });
+        setSentinelState({
+          loading: false,
+          allowed: false,
+          status: 'BLOCKED',
+          creditsRemaining: 0,
+          role: null,
+          message: d.message
+        });
       }
-    })
-    .catch(() => {
+    } catch {
       sessionStorage.setItem('tcb_founder_bypass', '1');
-      setSentinelState({ loading: false, allowed: true, status: 'AUTHORIZED', creditsRemaining: Math.max(0, 3 - localUsed), role: 'PRIMARY', message: 'Offline verified' });
-    });
+      setSentinelState({
+        loading: false,
+        allowed: true,
+        status: 'AUTHORIZED',
+        creditsRemaining: Math.max(0, 3 - localUsed),
+        role: 'PRIMARY',
+        deviceNumber: 1,
+        validUntil: Date.now() + 7 * 86400000,
+        message: 'Offline verified'
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (_mindlerCode) {
+      verifyCurrentDevice(false);
+    }
   }, [_mindlerCode, localUsed]);
+
+  const handleVerifyOtp = async () => {
+    if (!otpInput.trim() || !_mindlerCode) return;
+    setIsVerifyingOtp(true);
+    setOtpError('');
+    try {
+      const res = await fetch('https://tcb-sentinel.vercel.app/api/approve-device', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: _mindlerCode, otp: otpInput.trim() })
+      });
+      const data = await res.json();
+      if (data.success) {
+        verifyCurrentDevice(false);
+      } else {
+        setOtpError(data.message || 'Incorrect authorization code.');
+      }
+    } catch {
+      setOtpError('Network error during verification.');
+    } finally {
+      setIsVerifyingOtp(false);
+    }
+  };
+
+  const handleTopUpSubmit = async (customCode) => {
+    const codeToUse = customCode || _mindlerCode;
+    if (!codeToUse) return;
+    setIsTopUpLoading(true);
+    try {
+      const res = await fetch('https://tcb-sentinel.vercel.app/api/topup-license', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: codeToUse, days: 3 })
+      });
+      const d = await res.json();
+      if (d.success) {
+        alert(`🎉 Top-up successful! Pass extended by +3 days (valid until ${new Date(d.valid_until).toLocaleDateString('en-IN')}).`);
+        setTopUpModalOpen(false);
+        verifyCurrentDevice(false);
+      } else {
+        alert(d.message || 'Top-up code invalid.');
+      }
+    } catch {
+      alert('Network error during top-up.');
+    } finally {
+      setIsTopUpLoading(false);
+    }
+  };
+
+  const getPassRemainingTime = () => {
+    if (!sentinelState.validUntil) return null;
+    const diff = sentinelState.validUntil - nowTimer;
+    if (diff <= 0) return { expired: true, text: 'Expired', color: '#EF4444' };
+    const days = Math.floor(diff / (24 * 60 * 60 * 1000));
+    const hours = Math.floor((diff % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+    const mins = Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000));
+
+    let text = '';
+    let color = '#10B981';
+    if (days > 1) {
+      text = `${days}d ${hours}h left`;
+    } else if (days === 1) {
+      text = `1d ${hours}h left`;
+      color = '#F59E0B';
+    } else {
+      text = `${hours}h ${mins}m left`;
+      color = '#EF4444';
+    }
+    return { expired: false, days, hours, mins, text, color };
+  };
 
   // Trigger Confirmation Modal before Copying
   const triggerCopyModal = (text, title, type) => {
@@ -313,6 +457,175 @@ export default function HunterPage() {
   };
 
   const remainingDeliverables = Math.max(0, Math.min(sentinelState.creditsRemaining, 3 - localUsed));
+  const passRemaining = getPassRemainingTime();
+
+  // ── Sentinel Gate Screens (for VIP License Holders) ──
+  if (_isMindlerUser && !sentinelState.allowed) {
+    if (sentinelState.loading) {
+      return (
+        <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+          <img src="/tcb-logo.png" alt="TCB" style={{ width: '56px', height: '56px', marginBottom: '20px', animation: 'pulse 1.5s infinite' }} />
+          <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: '22px', color: C.dark, marginBottom: '8px' }}>Authenticating Hardware Pass…</h2>
+          <p style={{ fontSize: '13px', color: C.soft }}>Verifying license with TCB Sentinel Engine</p>
+        </div>
+      );
+    }
+
+    if (sentinelState.status === 'SESSION_CONFLICT') {
+      return (
+        <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+          <div style={{ background: C.mist, border: `2px solid ${C.amber}`, borderRadius: '20px', padding: '36px', maxWidth: '520px', width: '100%', textAlign: 'center', boxShadow: '0 16px 48px rgba(0,0,0,0.1)' }}>
+            <div style={{ width: '64px', height: '64px', borderRadius: '16px', background: 'rgba(201,123,42,0.15)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', marginBottom: '16px' }}>
+              📱
+            </div>
+            <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: '24px', color: C.dark, marginBottom: '10px' }}>
+              Active Session on Another Device
+            </h2>
+            <div style={{ display: 'inline-block', background: 'rgba(201,123,42,0.12)', color: C.amber, fontFamily: "'JetBrains Mono', monospace", fontSize: '11px', fontWeight: 700, padding: '4px 12px', borderRadius: '20px', marginBottom: '18px' }}>
+              TCB Policy: Limit to 2 Devices • Strictly 1 Active at a Time
+            </div>
+            <p style={{ fontSize: '14px', color: C.soft, lineHeight: 1.6, marginBottom: '24px' }}>
+              Your Recruiter Reach pass is currently active on your <b>{sentinelState.activeDeviceName || 'other registered device'}</b>. TCB allows you to use up to 2 devices, but only one active session at a time to prevent multi-user link sharing.
+            </p>
+            <button
+              onClick={() => verifyCurrentDevice(true)}
+              style={{ width: '100%', background: C.amber, color: '#1C1410', border: 'none', borderRadius: '12px', padding: '14px', fontSize: '15px', fontWeight: 800, cursor: 'pointer', marginBottom: '14px', boxShadow: '0 4px 16px rgba(201,123,42,0.3)' }}
+            >
+              ⚡ Switch Session to This Device
+            </button>
+            <a
+              href="https://wa.me/919743711584?text=Hi%20Coach%20Sandarsh!%20👋%20I%20have%20a%20question%20about%20my%20Recruiter%20Reach%20device%20session."
+              target="_blank"
+              rel="noreferrer"
+              style={{ fontSize: '12px', color: C.soft, textDecoration: 'none' }}
+            >
+              Need help? WhatsApp Coach Sandarsh ↗
+            </a>
+          </div>
+        </div>
+      );
+    }
+
+    if (sentinelState.status === 'EXPIRED') {
+      return (
+        <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+          <div style={{ background: C.mist, border: '2px solid #EF4444', borderRadius: '20px', padding: '36px', maxWidth: '520px', width: '100%', textAlign: 'center', boxShadow: '0 16px 48px rgba(0,0,0,0.1)' }}>
+            <div style={{ width: '64px', height: '64px', borderRadius: '16px', background: 'rgba(239,68,68,0.15)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', marginBottom: '16px' }}>
+              ⏳
+            </div>
+            <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: '24px', color: C.dark, marginBottom: '10px' }}>
+              7-Day Outbound Pass Expired
+            </h2>
+            <div style={{ display: 'inline-block', background: 'rgba(239,68,68,0.12)', color: '#EF4444', fontFamily: "'JetBrains Mono', monospace", fontSize: '11px', fontWeight: 700, padding: '4px 12px', borderRadius: '20px', marginBottom: '18px' }}>
+              Expired: {sentinelState.validUntil ? new Date(sentinelState.validUntil).toLocaleDateString('en-IN') : 'Pass Expired'}
+            </div>
+            <p style={{ fontSize: '14px', color: C.soft, lineHeight: 1.6, marginBottom: '24px' }}>
+              Your 7-day recruiter reconnaissance window has ended. Top up for <b>+3 days (72 hours) for ₹299</b> to continue scouting hiring managers, resolving work emails, and generating tailored outbound scripts.
+            </p>
+            <a
+              href={`https://wa.me/919743711584?text=Hi%20Coach%20Sandarsh!%20👋%20My%207-day%20Recruiter%20Reach%20pass%20has%20expired%20(Code%20%23${_mindlerCode}).%20I%20would%20like%20to%20top%20up%20for%20%2B3%20days%20(₹299).`}
+              target="_blank"
+              rel="noreferrer"
+              style={{ display: 'block', width: '100%', background: '#16A34A', color: 'white', textDecoration: 'none', borderRadius: '12px', padding: '14px', fontSize: '15px', fontWeight: 800, marginBottom: '16px', boxShadow: '0 4px 16px rgba(22,163,74,0.3)', boxSizing: 'border-box' }}
+            >
+              ⚡ Top Up +3 Days for ₹299 (WhatsApp)
+            </a>
+
+            <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: '18px', marginTop: '14px' }}>
+              <label style={{ display: 'block', fontSize: '11px', fontFamily: "'JetBrains Mono', monospace", color: C.soft, marginBottom: '8px', textTransform: 'uppercase', fontWeight: 700 }}>
+                Already have a Top-Up Code?
+              </label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  placeholder="Enter Code (e.g. 7755)"
+                  value={topUpCodeInput}
+                  onChange={e => setTopUpCodeInput(e.target.value)}
+                  style={{ flex: 1, padding: '10px 12px', borderRadius: '8px', border: `1.5px solid ${C.border}`, background: C.cream, color: C.dark, fontSize: '13px', outline: 'none' }}
+                />
+                <button
+                  onClick={() => handleTopUpSubmit(topUpCodeInput.trim())}
+                  disabled={!topUpCodeInput.trim() || isTopUpLoading}
+                  style={{ background: C.amber, color: '#1C1410', border: 'none', borderRadius: '8px', padding: '0 16px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  {isTopUpLoading ? 'Applying…' : 'Activate'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (sentinelState.status === 'OTP_REQUIRED') {
+      return (
+        <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+          <div style={{ background: C.mist, border: `2px solid ${C.amber}`, borderRadius: '20px', padding: '36px', maxWidth: '500px', width: '100%', textAlign: 'center', boxShadow: '0 16px 48px rgba(0,0,0,0.1)' }}>
+            <div style={{ width: '64px', height: '64px', borderRadius: '16px', background: 'rgba(201,123,42,0.15)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', marginBottom: '16px' }}>
+              🔐
+            </div>
+            <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: '24px', color: C.dark, marginBottom: '10px' }}>
+              Secondary Device Authorization
+            </h2>
+            <p style={{ fontSize: '14px', color: C.soft, lineHeight: 1.6, marginBottom: '20px' }}>
+              This pass is already registered on your primary machine. To authorize this secondary machine (Device 2 of 2), enter the 4-digit approval code from Coach Sandarsh:
+            </p>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginBottom: '14px' }}>
+              <input
+                type="text"
+                maxLength={4}
+                value={otpInput}
+                onChange={e => setOtpInput(e.target.value)}
+                placeholder="4-digit OTP"
+                style={{ width: '160px', textAlign: 'center', padding: '12px', borderRadius: '10px', border: `2px solid ${C.amber}`, fontSize: '20px', fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", background: C.cream, color: C.dark, letterSpacing: '4px' }}
+              />
+              <button
+                onClick={handleVerifyOtp}
+                disabled={isVerifyingOtp || otpInput.trim().length < 4}
+                style={{ background: C.amber, color: '#1C1410', border: 'none', borderRadius: '10px', padding: '0 20px', fontWeight: 800, fontSize: '14px', cursor: 'pointer' }}
+              >
+                {isVerifyingOtp ? 'Checking…' : 'Authorize'}
+              </button>
+            </div>
+            {otpError && <div style={{ color: '#EF4444', fontSize: '12px', fontWeight: 600, marginBottom: '14px' }}>{otpError}</div>}
+            <a
+              href={`https://wa.me/919743711584?text=Hi%20Coach%20Sandarsh!%20👋%20I'm%20setting%20up%20my%20secondary%20device%20for%20Recruiter%20Reach%20(Code%20%23${_mindlerCode}).%20Please%20share%20the%204-digit%20authorization%20code.`}
+              target="_blank"
+              rel="noreferrer"
+              style={{ display: 'inline-block', fontSize: '12px', color: C.soft, textDecoration: 'none' }}
+            >
+              Request OTP from Coach Sandarsh on WhatsApp ↗
+            </a>
+          </div>
+        </div>
+      );
+    }
+
+    // Default BLOCKED (3rd device)
+    return (
+      <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+        <div style={{ background: C.mist, border: '2px solid #EF4444', borderRadius: '20px', padding: '36px', maxWidth: '500px', width: '100%', textAlign: 'center', boxShadow: '0 16px 48px rgba(0,0,0,0.1)' }}>
+          <div style={{ width: '64px', height: '64px', borderRadius: '16px', background: 'rgba(239,68,68,0.15)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', marginBottom: '16px' }}>
+            🚫
+          </div>
+          <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: '24px', color: C.dark, marginBottom: '10px' }}>
+            2-Device Limit Reached
+          </h2>
+          <p style={{ fontSize: '14px', color: C.soft, lineHeight: 1.6, marginBottom: '24px' }}>
+            Access Blocked: Maximum 2 devices (1 Primary + 1 Secondary) are already bound to this pass. Multi-device link sharing is locked.
+          </p>
+          <a
+            href={`https://wa.me/919743711584?text=Hi%20Coach%20Sandarsh!%20👋%20My%20Recruiter%20Reach%20pass%20(Code%20%23${_mindlerCode})%20is%20showing%20device%20limit%20exceeded.%20I%20need%20to%20reset%20my%20registered%20devices.`}
+            target="_blank"
+            rel="noreferrer"
+            style={{ display: 'inline-block', background: '#EF4444', color: 'white', textDecoration: 'none', borderRadius: '12px', padding: '14px 24px', fontWeight: 800, fontSize: '14px' }}
+          >
+            Request Device Reset from Coach Sandarsh ↗
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ background: C.bg, color: C.ink, minHeight: '100vh', fontFamily: "'Plus Jakarta Sans', sans-serif", transition: 'background 0.3s' }}>
@@ -327,7 +640,14 @@ export default function HunterPage() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {_isMindlerUser && passRemaining && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: passRemaining.color === '#EF4444' ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.12)', border: `1px solid ${passRemaining.color}`, padding: '5px 12px', borderRadius: '8px' }}>
+              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '11px', fontWeight: 700, color: passRemaining.color }}>
+                ⏳ {passRemaining.text}
+              </span>
+            </div>
+          )}
           <a href="https://tcb-linkedin-optimizer.vercel.app" target="_blank" rel="noreferrer" style={{ fontSize: '12px', fontWeight: 600, color: C.soft, textDecoration: 'none', border: `1px solid ${C.border}`, padding: '6px 12px', borderRadius: '8px' }}>
             LinkedIn Optimizer ↗
           </a>
@@ -360,13 +680,44 @@ export default function HunterPage() {
           </p>
         </div>
 
-        {/* ── Quota Indicator ── */}
-        {_isMindlerUser && (
-          <div style={{ background: 'rgba(201,123,42,0.08)', border: `1px solid ${C.amber}`, borderRadius: '12px', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+        {/* ── Quota & Pass Status Indicator ── */}
+        {_isMindlerUser ? (
+          <div style={{ background: 'rgba(201,123,42,0.08)', border: `1.5px solid ${C.amber}`, borderRadius: '12px', padding: '12px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '12px', fontWeight: 700, color: C.amber }}>
+                ⭐ VIP Licensed Recon: {remainingDeliverables} of 3 Hunts Remaining
+              </span>
+              {passRemaining && (
+                <span style={{ background: passRemaining.color === '#EF4444' ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)', color: passRemaining.color, border: `1px solid ${passRemaining.color}`, borderRadius: '20px', padding: '2px 10px', fontSize: '11px', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
+                  ⏳ 7-Day Pass: {passRemaining.text}
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ fontSize: '11px', color: C.soft }}>📱 Device {sentinelState.deviceNumber} of 2 (Active Session)</span>
+              <button
+                onClick={() => setTopUpModalOpen(true)}
+                style={{ background: C.mist, border: `1px solid ${C.amber}`, color: C.amber, borderRadius: '8px', padding: '5px 12px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+              >
+                +3 Days Top-Up
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ background: 'rgba(201,123,42,0.08)', border: `1.5px solid ${C.amber}`, borderRadius: '12px', padding: '12px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '10px' }}>
             <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '12px', fontWeight: 700, color: C.amber }}>
-              ⭐ VIP Licensed Reconnaissance: {remainingDeliverables} of 3 Hunts Remaining
+              🎯 Complimentary Free Trial: {Math.max(0, 3 - localUsed)} of 3 Drills Remaining
             </span>
-            <span style={{ fontSize: '11px', color: C.soft }}>2-Device Hardware Locked</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <a
+                href="https://wa.me/919743711584?text=Hi%20Coach%20Sandarsh!%20👋%20I%20would%20like%20to%20unlock%20the%207-Day%20Recruiter%20Reach%20Pass%20for%20₹999."
+                target="_blank"
+                rel="noreferrer"
+                style={{ fontSize: '11px', fontWeight: 700, color: C.amber, textDecoration: 'none', border: `1px solid ${C.amber}`, padding: '5px 12px', borderRadius: '8px' }}
+              >
+                ⚡ Unlock 7-Day Pass (₹999) ↗
+              </a>
+            </div>
           </div>
         )}
 
@@ -378,9 +729,60 @@ export default function HunterPage() {
             <p style={{ fontSize: '14px', color: C.soft, lineHeight: 1.6, maxWidth: '540px', margin: '0 auto 20px' }}>
               You have completed all 3 of your licensed recruiter reconnaissance drills. Request a strategy review call with Coach Sandarsh below to evaluate your target companies and unlock +3 extra credits.
             </p>
-            <a href={`https://wa.me/919743711584?text=Hi%20Coach%20Sandarsh!%20👋%20I've%20completed%20my%203%20deliverables%20for%20Recruiter%20Reach%20(Code%20%23${_mindlerCode}).%20I%20would%20like%20to%20request%20a%20strategy%20call%20for%20%2B3%20extra%20credits.`} target="_blank" rel="noreferrer" style={{ display: 'inline-block', background: '#C88323', color: 'white', textDecoration: 'none', borderRadius: '12px', padding: '14px 24px', fontWeight: 700, fontSize: '14px' }}>
-              📞 Request a Call with Coach Sandarsh for +3 Extra Credits
-            </a>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <a href={`https://wa.me/919743711584?text=Hi%20Coach%20Sandarsh!%20👋%20I've%20completed%20my%203%20deliverables%20for%20Recruiter%20Reach%20(Code%20%23${_mindlerCode}).%20I%20would%20like%20to%20request%20a%20strategy%20call%20for%20%2B3%20extra%20credits.`} target="_blank" rel="noreferrer" style={{ display: 'inline-block', background: '#C88323', color: 'white', textDecoration: 'none', borderRadius: '12px', padding: '14px 24px', fontWeight: 700, fontSize: '14px' }}>
+                📞 Request Call with Coach Sandarsh (+3 Credits)
+              </a>
+              <button onClick={() => setTopUpModalOpen(true)} style={{ background: 'transparent', border: `1.5px solid ${C.amber}`, color: C.dark, borderRadius: '12px', padding: '14px 24px', fontWeight: 700, fontSize: '14px', cursor: 'pointer' }}>
+                ⏳ Top Up +3 Days (₹299)
+              </button>
+            </div>
+          </div>
+        ) : (!_isMindlerUser && localUsed >= 3) ? (
+          <div style={{ background: 'rgba(200,131,35,0.12)', border: '1.5px solid #C88323', borderRadius: '16px', padding: '32px', textAlign: 'center', marginBottom: '32px' }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '8px' }}>🚀</div>
+            <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: '22px', color: '#C88323', marginBottom: '10px' }}>
+              3 Free Reconnaissance Drills Completed!
+            </h3>
+            <p style={{ fontSize: '14px', color: C.soft, lineHeight: 1.6, maxWidth: '580px', margin: '0 auto 20px' }}>
+              You have experienced the precision of Recruiter Reach! Unlock your full <b>7-Day Outbound Access Pass for ₹999</b> (locked to 2 devices, 1 active session at a time) or activate your VIP Passcode below.
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '24px' }}>
+              <a
+                href="https://wa.me/919743711584?text=Hi%20Coach%20Sandarsh!%20👋%20I've%20completed%20my%203%20free%20trials%20for%20Recruiter%20Reach.%20I%20would%20like%20to%20unlock%20the%207-Day%20Pass%20for%20₹999."
+                target="_blank"
+                rel="noreferrer"
+                style={{ display: 'inline-block', background: '#16A34A', color: 'white', textDecoration: 'none', borderRadius: '12px', padding: '14px 28px', fontWeight: 800, fontSize: '14px', boxShadow: '0 4px 16px rgba(22,163,74,0.3)' }}
+              >
+                ⚡ Unlock 7-Day Pass for ₹999
+              </a>
+            </div>
+
+            <div style={{ maxWidth: '380px', margin: '0 auto', borderTop: `1px solid ${C.border}`, paddingTop: '18px' }}>
+              <label style={{ display: 'block', fontSize: '11px', fontFamily: "'JetBrains Mono', monospace", color: C.soft, marginBottom: '8px', textTransform: 'uppercase', fontWeight: 700 }}>
+                Already have a 4-Digit VIP Passcode?
+              </label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  placeholder="Enter Passcode (e.g. 7755)"
+                  value={vipCodeInput}
+                  onChange={e => setVipCodeInput(e.target.value)}
+                  style={{ flex: 1, padding: '10px 12px', borderRadius: '8px', border: `1.5px solid ${C.border}`, background: C.cream, color: C.dark, fontSize: '13px', outline: 'none' }}
+                />
+                <button
+                  onClick={() => {
+                    if (vipCodeInput.trim()) {
+                      window.location.href = `/mindler-user-${vipCodeInput.trim()}`;
+                    }
+                  }}
+                  disabled={!vipCodeInput.trim()}
+                  style={{ background: C.amber, color: '#1C1410', border: 'none', borderRadius: '8px', padding: '0 16px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Activate
+                </button>
+              </div>
+            </div>
           </div>
         ) : (
           /* ── Progressive Unified Input Card ── */
@@ -774,6 +1176,71 @@ export default function HunterPage() {
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* ── Top-Up Modal ── */}
+      {topUpModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.68)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '20px' }}>
+          <div style={{ background: C.mist, border: `2px solid ${C.amber}`, borderRadius: '18px', maxWidth: '500px', width: '100%', padding: '28px', boxShadow: '0 16px 48px rgba(0,0,0,0.3)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+              <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'rgba(201,123,42,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px' }}>
+                ⏳
+              </div>
+              <div>
+                <div style={{ fontFamily: "'Fraunces', serif", fontSize: '20px', fontWeight: 700, color: C.dark }}>
+                  Top Up Outbound Pass (+3 Days)
+                </div>
+                <div style={{ fontSize: '12px', color: C.soft }}>
+                  Adds +72 hours of decision-maker scouting for ₹299
+                </div>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '13.5px', color: C.ink, lineHeight: 1.5, marginBottom: '20px' }}>
+              Extend your active reconnaissance window by +3 days. Maintains your 2 registered devices with single concurrent session protection.
+            </p>
+
+            <a
+              href={`https://wa.me/919743711584?text=Hi%20Coach%20Sandarsh!%20👋%20I%20would%20like%20to%20top%20up%20my%20Recruiter%20Reach%20pass%20for%20%2B3%20days%20(₹299)%20(Code%20%23${_mindlerCode || 'public'}).`}
+              target="_blank"
+              rel="noreferrer"
+              style={{ display: 'block', width: '100%', background: '#16A34A', color: 'white', textAlign: 'center', textDecoration: 'none', borderRadius: '10px', padding: '12px', fontSize: '14px', fontWeight: 800, marginBottom: '16px', boxSizing: 'border-box' }}
+            >
+              💬 Request +3 Days on WhatsApp (₹299)
+            </a>
+
+            <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: '16px', marginTop: '14px' }}>
+              <label style={{ display: 'block', fontSize: '11px', fontFamily: "'JetBrains Mono', monospace", color: C.soft, marginBottom: '6px', textTransform: 'uppercase', fontWeight: 700 }}>
+                Have an Authorization Code?
+              </label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  placeholder="Enter Code (e.g. 7755)"
+                  value={topUpCodeInput}
+                  onChange={e => setTopUpCodeInput(e.target.value)}
+                  style={{ flex: 1, padding: '10px 12px', borderRadius: '8px', border: `1.5px solid ${C.border}`, background: C.cream, color: C.dark, fontSize: '13px', outline: 'none' }}
+                />
+                <button
+                  onClick={() => handleTopUpSubmit(topUpCodeInput.trim())}
+                  disabled={!topUpCodeInput.trim() || isTopUpLoading}
+                  style={{ background: C.amber, color: '#1C1410', border: 'none', borderRadius: '8px', padding: '0 16px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  {isTopUpLoading ? 'Applying…' : 'Apply'}
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
+              <button
+                onClick={() => setTopUpModalOpen(false)}
+                style={{ background: 'transparent', border: `1px solid ${C.border}`, borderRadius: '8px', padding: '8px 16px', fontSize: '12px', fontWeight: 600, color: C.soft, cursor: 'pointer' }}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
