@@ -166,7 +166,7 @@ export default function HunterPage() {
       const res = await fetch('https://tcb-sentinel.vercel.app/api/verify-device', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: _mindlerCode, device_hash: devHash, device_name: devName, take_session: takeSession })
+        body: JSON.stringify({ code: _mindlerCode, device_hash: devHash, device_name: devName, take_session: takeSession, product: 'recruiter-reach' })
       });
       const d = await res.json();
       if (d.allowed) {
@@ -182,6 +182,33 @@ export default function HunterPage() {
           activeDeviceName: d.active_device_name,
           message: d.message
         });
+
+        // Auto-populate target role, company, JD, and resume synced from Sentinel (Resume Audit / Rewriter / Sim)
+        if (d.target_role) setRole(d.target_role);
+        if (d.target_company) setCompany(d.target_company);
+        if (d.target_jd) setJdText(d.target_jd);
+        if (d.name) setCandidateName(d.name);
+        if (d.resume_name) {
+          setUploadedResumeName(d.resume_name);
+          setResumeParseSuccess(true);
+        } else if (d.resume_text) {
+          setUploadedResumeName('Synced Resume (from Audit)');
+          setResumeParseSuccess(true);
+        } else {
+          // Fallback fetch candidate-jd if missing
+          fetch(`https://tcb-sentinel.vercel.app/api/candidate-jd?code=${_mindlerCode}`)
+            .then(r => r.json())
+            .then(cd => {
+              if (cd.target_role) setRole(cd.target_role);
+              if (cd.target_company) setCompany(cd.target_company);
+              if (cd.target_jd) setJdText(cd.target_jd);
+              if (cd.resume_name) {
+                setUploadedResumeName(cd.resume_name);
+                setResumeParseSuccess(true);
+              }
+            })
+            .catch(() => {});
+        }
       } else if (d.status === 'SESSION_CONFLICT') {
         sessionStorage.removeItem('tcb_founder_bypass');
         setSentinelState({
