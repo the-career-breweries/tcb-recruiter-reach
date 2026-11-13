@@ -36,9 +36,13 @@ export default function HunterPage() {
   const C = theme === 'dark' ? DARK : LIGHT;
 
   const loc = useLocation();
+  const _urlP = new URLSearchParams(window.location.search);
   const _mindlerMatch = window.location.pathname.match(/\/mindler-user-([a-zA-Z0-9_-]+)/);
-  const _mindlerCode = _mindlerMatch ? _mindlerMatch[1] : null;
+  const _mindlerCode = _mindlerMatch ? _mindlerMatch[1] : (_urlP.get('code') || _urlP.get('mindlerCode') || (typeof localStorage !== 'undefined' ? localStorage.getItem('tcb_student_code') : null) || null);
   const _isMindlerUser = Boolean(_mindlerCode);
+  if (_mindlerCode && typeof localStorage !== 'undefined') {
+    try { localStorage.setItem('tcb_student_code', _mindlerCode); } catch {}
+  }
 
   const [sentinelState, setSentinelState] = useState({
     loading: _isMindlerUser,
@@ -183,7 +187,7 @@ export default function HunterPage() {
           message: d.message
         });
 
-        // Auto-populate target role, company, JD, and resume synced from Sentinel (Resume Audit / Rewriter / Sim)
+        // Auto-populate target role, company, JD, and resume synced from Sentinel (Resume Audit / Builder / Rewriter / Sim)
         if (d.target_role) setRole(d.target_role);
         if (d.target_company) setCompany(d.target_company);
         if (d.target_jd) setJdText(d.target_jd);
@@ -192,23 +196,64 @@ export default function HunterPage() {
           setUploadedResumeName(d.resume_name);
           setResumeParseSuccess(true);
         } else if (d.resume_text) {
-          setUploadedResumeName('Synced Resume (from Audit)');
+          setUploadedResumeName('Synced Resume (from TCB Pipeline)');
           setResumeParseSuccess(true);
-        } else {
-          // Fallback fetch candidate-jd if missing
-          fetch(`https://tcb-sentinel.vercel.app/api/candidate-jd?code=${_mindlerCode}`)
-            .then(r => r.json())
-            .then(cd => {
-              if (cd.target_role) setRole(cd.target_role);
-              if (cd.target_company) setCompany(cd.target_company);
-              if (cd.target_jd) setJdText(cd.target_jd);
-              if (cd.resume_name) {
-                setUploadedResumeName(cd.resume_name);
+        }
+
+        // Also fetch full unified session from sync-audit-session so built/rewritten resume & credentials preload seamlessly
+        fetch(`https://tcb-sentinel.vercel.app/api/sync-audit-session?code=${_mindlerCode}`)
+          .then(r => r.json())
+          .then(sd => {
+            if (sd && sd.success && sd.has_session && sd.session) {
+              const s = sd.session;
+              if (s.jobTitle) setRole(prev => prev || s.jobTitle);
+              if (s.company) setCompany(prev => prev || s.company);
+              if (s.jobDescription) setJdText(prev => prev || s.jobDescription);
+              if (s.resumeName || s.resumeText) {
+                setUploadedResumeName(prev => prev || s.resumeName || 'Synced Resume (from TCB Pipeline)');
                 setResumeParseSuccess(true);
               }
-            })
-            .catch(() => {});
-        }
+              if (s.resumeBase64) {
+                fetch('/api/parse-resume', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    resumeBase64: s.resumeBase64,
+                    mediaType: s.resumeMediaType || 'application/pdf'
+                  })
+                })
+                  .then(pr => pr.json())
+                  .then(pData => {
+                    if (pData && pData.success) {
+                      if (pData.candidateName) setCandidateName(prev => prev || pData.candidateName);
+                      if (pData.candidateSkill) setCandidateSkill(prev => prev || pData.candidateSkill);
+                      if (pData.candidateProof) setCandidateProof(prev => prev || pData.candidateProof);
+                      if (pData.portfolioUrl) setPortfolioUrl(prev => prev || pData.portfolioUrl);
+                    }
+                  })
+                  .catch(() => {});
+              } else if (s.resumeText) {
+                // Extract top quantified bullet from synced resumeText if candidateProof is empty
+                const lines = String(s.resumeText).split('\n').map(l => l.replace(/^[•\-*]\s*/, '').trim()).filter(l => l.length > 35 && /\d+%|\d+\+|\₹|\$[0-9]|[0-9]+x/i.test(l));
+                if (lines.length > 0) {
+                  setCandidateProof(prev => prev || lines[0]);
+                }
+                if (s.jobTitle) {
+                  setCandidateSkill(prev => prev || s.jobTitle);
+                }
+              }
+            }
+          })
+          .catch(() => {});
+      } else if (d.status === 'TOOL_LOCKED') {
+        sessionStorage.removeItem('tcb_founder_bypass');
+        setSentinelState({
+          loading: false,
+          allowed: false,
+          status: 'TOOL_LOCKED',
+          validUntil: d.valid_until,
+          message: d.message || 'Recruiter Reach is not unlocked on your current pass.'
+        });
       } else if (d.status === 'SESSION_CONFLICT') {
         sessionStorage.removeItem('tcb_founder_bypass');
         setSentinelState({
@@ -503,6 +548,18 @@ export default function HunterPage() {
           if (cd.allowed) {
             setSentinelState(p => ({ ...p, creditsRemaining: cd.credits_remaining }));
           }
+          fetch('https://tcb-sentinel.vercel.app/api/sync-audit-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              code: _mindlerCode,
+              jobTitle: targetRole,
+              company: targetCompany,
+              jobDescription: jdText.trim() || parsedData.jd_text || '',
+              completedTool: 'recruiter-reach',
+              nextTool: 'linkedin-optimizer'
+            })
+          }).catch(() => {});
         } catch {}
       }
 
@@ -595,6 +652,30 @@ export default function HunterPage() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (sentinelState.status === 'TOOL_LOCKED') {
+      return (
+        <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+          <div style={{ background: C.mist, border: `2px solid ${C.amber}`, borderRadius: '20px', padding: '36px', maxWidth: '500px', width: '100%', textAlign: 'center', boxShadow: '0 16px 48px rgba(0,0,0,0.1)' }}>
+            <div style={{ width: '64px', height: '64px', borderRadius: '16px', background: 'rgba(201,123,42,0.15)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', marginBottom: '16px' }}>
+              🔒
+            </div>
+            <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: '24px', color: C.dark, marginBottom: '10px' }}>
+              Tool Not Included in Current Pass
+            </h2>
+            <p style={{ fontSize: '14px', color: C.soft, lineHeight: 1.6, marginBottom: '24px' }}>
+              {sentinelState.message || 'Recruiter Reach is not unlocked on your current pass. Return to the Candidate Portal to unlock it or open your active tools.'}
+            </p>
+            <a
+              href={`https://thecareerbreweries.vercel.app/portal?code=${_mindlerCode}`}
+              style={{ display: 'block', width: '100%', background: C.amber, color: '#1C1410', textDecoration: 'none', borderRadius: '12px', padding: '14px', fontSize: '15px', fontWeight: 800, boxSizing: 'border-box' }}
+            >
+              ⚡ Return to Candidate Portal →
+            </a>
           </div>
         </div>
       );
@@ -777,7 +858,12 @@ export default function HunterPage() {
               </span>
             </div>
           )}
-          <a href="https://tcb-linkedin-optimizer.vercel.app" target="_blank" rel="noreferrer" style={{ fontSize: '12px', fontWeight: 600, color: C.soft, textDecoration: 'none', border: `1px solid ${C.border}`, padding: '6px 12px', borderRadius: '8px' }}>
+          {_isMindlerUser && (
+            <a href={`https://thecareerbreweries.vercel.app/portal?code=${_mindlerCode}`} style={{ fontSize: '12px', fontWeight: 700, color: C.amber, textDecoration: 'none', border: `1.5px solid ${C.amber}`, padding: '6px 12px', borderRadius: '8px', background: 'rgba(201,123,42,0.08)' }}>
+              ← Candidate Portal
+            </a>
+          )}
+          <a href={_mindlerCode ? `https://tcb-linkedin-optimizer.vercel.app/mindler-user-${_mindlerCode}` : 'https://tcb-linkedin-optimizer.vercel.app'} target="_blank" rel="noreferrer" style={{ fontSize: '12px', fontWeight: 600, color: C.soft, textDecoration: 'none', border: `1px solid ${C.border}`, padding: '6px 12px', borderRadius: '8px' }}>
             LinkedIn Optimizer ↗
           </a>
           <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} style={{ background: C.mist, border: `1px solid ${C.border}`, borderRadius: '8px', padding: '6px 12px', fontSize: '12px', cursor: 'pointer', color: C.dark, fontWeight: 600 }}>
