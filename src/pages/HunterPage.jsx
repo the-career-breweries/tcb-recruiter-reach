@@ -596,7 +596,7 @@ export default function HunterPage() {
     if (sentinelState.loading) {
       return (
         <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-          <img src="/tcb-logo.png" alt="TCB" style={{ width: '56px', height: '56px', marginBottom: '20px', animation: 'pulse 1.5s infinite' }} />
+          <img src="/tcb-logo.png?v=8" alt="TCB" style={{ width: '56px', height: '56px', borderRadius: '50%', marginBottom: '20px', animation: 'pulse 1.5s infinite' }} />
           <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: '22px', color: C.dark, marginBottom: '8px' }}>Authenticating Hardware Pass…</h2>
           <p style={{ fontSize: '13px', color: C.soft }}>Verifying license with TCB Sentinel Engine</p>
         </div>
@@ -843,7 +843,7 @@ export default function HunterPage() {
       {/* ── Global Header ── */}
       <header style={{ borderBottom: `1px solid ${C.border}`, padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, background: theme === 'dark' ? 'rgba(20,16,8,0.92)' : 'rgba(250,243,232,0.92)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <img src="/tcb-logo.png" alt="The Career Breweries" style={{ width: '38px', height: '38px', borderRadius: '8px', objectFit: 'contain' }} />
+          <img src="/tcb-logo.png?v=8" alt="The Career Breweries" style={{ width: '38px', height: '38px', borderRadius: '50%', objectFit: 'contain' }} />
           <div>
             <div style={{ fontFamily: "'Fraunces', serif", fontSize: '18px', fontWeight: 700, color: C.dark, letterSpacing: '-0.01em' }}>The Career Breweries</div>
             <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', color: C.amber, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700 }}>Recruiter Reach • Outbound Hunter</div>
@@ -884,7 +884,7 @@ export default function HunterPage() {
         
         <div style={{ textAlign: 'center', marginBottom: '36px' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', padding: '6px 16px', borderRadius: '24px', background: 'rgba(201,123,42,0.12)', border: `1.5px solid ${C.amber}`, marginBottom: '18px' }}>
-            <img src="/tcb-logo.png" alt="TCB" style={{ width: '20px', height: '20px', objectFit: 'contain' }} />
+            <img src="/tcb-logo.png?v=8" alt="TCB" style={{ width: '20px', height: '20px', borderRadius: '50%', objectFit: 'contain' }} />
             <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '11px', color: C.amber, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Precision Job Acquisition Engine</span>
           </div>
           <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: '36px', lineHeight: 1.25, color: C.dark, marginBottom: '14px' }}>
